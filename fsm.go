@@ -4,7 +4,7 @@ import "sync"
 
 type FSM struct {
 	muCurrentState sync.RWMutex
-	CurrentState   State
+	currentState   State
 }
 
 func NewFSM(states []State) *FSM {
@@ -19,9 +19,14 @@ func NewFSM(states []State) *FSM {
 	return fsm
 }
 
-func (f *FSM) CanEnterState(state State) bool {
+func (f *FSM) CurrentState() State {
 	f.muCurrentState.RLock()
 	defer f.muCurrentState.RUnlock()
+	return f.currentState
+}
+
+func (f *FSM) CanEnterState(state State) bool {
+	currentState := f.CurrentState()
 
 	if state == nil {
 		return false
@@ -31,11 +36,11 @@ func (f *FSM) CanEnterState(state State) bool {
 		return false
 	}
 
-	if f.CurrentState == nil {
+	if currentState == nil {
 		return true
 	}
 
-	return f.CurrentState.IsValidNextState(state)
+	return currentState.IsValidNextState(state)
 }
 
 func (f *FSM) Enter(state State) bool {
@@ -43,18 +48,18 @@ func (f *FSM) Enter(state State) bool {
 		return false
 	}
 
-	f.muCurrentState.Lock()
-	defer f.muCurrentState.Unlock()
+	currentState := f.CurrentState()
 
-	if f.CurrentState != nil {
-		f.CurrentState.WillExit(state)
+	if currentState != nil {
+		currentState.WillExit(state)
 	}
 
-	prevState := f.CurrentState
-	f.CurrentState = state
+	f.muCurrentState.Lock()
+	f.currentState = state
+	f.muCurrentState.Unlock()
 
-	f.CurrentState.DidEnter(prevState)
-	f.CurrentState.Process()
+	state.DidEnter(currentState)
+	state.Process()
 
 	return true
 }
