@@ -5,12 +5,17 @@ import (
 	"testing"
 )
 
+const (
+	StateTypeFirst StateType = iota
+	StateTypeSecond
+)
+
 type firstState struct {
-	fsm *FSM
+	BaseState
 }
 
 type secondState struct {
-	fsm *FSM
+	BaseState
 }
 
 var (
@@ -18,60 +23,39 @@ var (
 	second = &secondState{}
 )
 
-func (f *firstState) SetStateMachine(fsm *FSM) {
-	f.fsm = fsm
+// first state
+
+func (f *firstState) Type() StateType {
+	return StateTypeFirst
 }
 
-func (f *firstState) StateMachine() *FSM {
-	return f.fsm
-}
-
-func (f *firstState) IsValidNextState(state State) bool {
-	_, ok := state.(*secondState)
-	return ok
-}
-
-func (f *firstState) DidEnter(from State) {
-	log.Printf("[first state] Did enter from %T", from)
+func (f *firstState) IsValidNextState(stateType StateType) bool {
+	return stateType == StateTypeSecond
 }
 
 func (f *firstState) Process() {
 	log.Println("[first state] Process...")
 }
 
-func (f *firstState) WillExit(to State) {
-	log.Printf("[first state] WillExit to %T", to)
+// second state
+
+func (f *secondState) Type() StateType {
+	return StateTypeSecond
 }
 
-func (f *secondState) SetStateMachine(fsm *FSM) {
-	f.fsm = fsm
-}
-
-func (f *secondState) StateMachine() *FSM {
-	return f.fsm
-}
-
-func (f *secondState) IsValidNextState(state State) bool {
+func (f *secondState) IsValidNextState(stateType StateType) bool {
 	return false
-}
-
-func (f *secondState) DidEnter(from State) {
-	log.Printf("[second state] Did enter from %T", from)
 }
 
 func (f *secondState) Process() {
 	log.Println("[second state] Process...")
 }
 
-func (f *secondState) WillExit(to State) {
-	log.Printf("[second state] WillExit to %T", to)
-}
-
 func TestFSM_CanEnterState(t *testing.T) {
-	fsm := NewFSM([]State{first, second})
+	fsm := NewFSM(first, second)
 
 	type args struct {
-		state State
+		stateType StateType
 	}
 	tests := []struct {
 		name string
@@ -82,29 +66,29 @@ func TestFSM_CanEnterState(t *testing.T) {
 		{
 			name: "entering to the first state",
 			fsm:  fsm,
-			args: args{first},
+			args: args{StateTypeFirst},
 			want: true,
 		},
 		{
 			name: "entering to the second state",
 			fsm:  fsm,
-			args: args{second},
+			args: args{StateTypeSecond},
 			want: true,
 		},
 		{
 			name: "entering to the first state again",
 			fsm:  fsm,
-			args: args{first},
+			args: args{StateTypeFirst},
 			want: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			if got := tt.fsm.CanEnterState(tt.args.state); got != tt.want {
+			if got := tt.fsm.CanEnterState(tt.args.stateType); got != tt.want {
 				t.Errorf("FSM.CanEnterState() = %v, want %v", got, tt.want)
 			}
-			tt.fsm.Enter(tt.args.state)
+			tt.fsm.Enter(tt.args.stateType)
 		})
 	}
 }
@@ -126,7 +110,7 @@ func TestNewFSM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fsm := NewFSM(tt.states)
+			fsm := NewFSM(tt.states...)
 			if fsm == nil {
 				t.Errorf("NewFSM() = nil")
 			}
@@ -145,25 +129,25 @@ func TestFSM_Enter(t *testing.T) {
 	tests := []struct {
 		name string
 		fsm  *FSM
-		to   State
+		to   StateType
 		want bool
 	}{
 		{
 			name: "empty",
-			fsm:  NewFSM([]State{}),
-			to:   first,
+			fsm:  NewFSM(),
+			to:   StateTypeFirst,
 			want: false,
 		},
 		{
 			name: "not in states",
-			fsm:  NewFSM([]State{first}),
-			to:   second,
+			fsm:  NewFSM(first),
+			to:   StateTypeSecond,
 			want: false,
 		},
 		{
 			name: "in states",
-			fsm:  NewFSM([]State{first}),
-			to:   first,
+			fsm:  NewFSM(first),
+			to:   StateTypeFirst,
 			want: true,
 		},
 	}

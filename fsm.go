@@ -5,14 +5,18 @@ import "sync"
 type FSM struct {
 	muCurrentState sync.RWMutex
 	currentState   State
+	states         map[StateType]State
 }
 
-func NewFSM(states []State) *FSM {
-	fsm := &FSM{}
+func NewFSM(states ...State) *FSM {
+	fsm := &FSM{
+		states: map[StateType]State{},
+	}
 
 	for _, state := range states {
 		if state != nil {
 			state.SetStateMachine(fsm)
+			fsm.states[state.Type()] = state
 		}
 	}
 
@@ -25,8 +29,13 @@ func (f *FSM) CurrentState() State {
 	return f.currentState
 }
 
-func (f *FSM) CanEnterState(state State) bool {
+func (f *FSM) CanEnterState(stateType StateType) bool {
 	currentState := f.CurrentState()
+
+	state, ok := f.states[stateType]
+	if !ok {
+		return false
+	}
 
 	if state == nil {
 		return false
@@ -40,14 +49,15 @@ func (f *FSM) CanEnterState(state State) bool {
 		return true
 	}
 
-	return currentState.IsValidNextState(state)
+	return currentState.IsValidNextState(stateType)
 }
 
-func (f *FSM) Enter(state State) bool {
-	if state == nil || !f.CanEnterState(state) {
+func (f *FSM) Enter(stateType StateType) bool {
+	if !f.CanEnterState(stateType) {
 		return false
 	}
 
+	state := f.states[stateType]
 	currentState := f.CurrentState()
 
 	if currentState != nil {
