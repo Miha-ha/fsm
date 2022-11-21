@@ -1,31 +1,18 @@
 package fsm
 
-type StateType int
-
 type State interface {
-	Type() StateType
-	SetStateMachine(bssm *FSM)
-	StateMachine() *FSM
-	IsValidNextState(StateType) bool
+	IsValidNextState(State) bool
 	DidEnter(from State)
-	Process()
+	Process() State
 	WillExit(to State)
 }
 
-type BaseState struct {
-	fsm *FSM
-}
-
-func (bs *BaseState) SetStateMachine(fsm *FSM) {
-	bs.fsm = fsm
-}
-
-func (bs *BaseState) StateMachine() *FSM {
-	return bs.fsm
-}
+type BaseState struct{}
 
 func (bs *BaseState) DidEnter(from State) {}
 
-func (bs *BaseState) Process() {}
+func (bs *BaseState) Process() State {
+	return nil
+}
 
 func (bs *BaseState) WillExit(to State) {}
